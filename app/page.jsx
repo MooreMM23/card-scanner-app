@@ -8,7 +8,6 @@ export default function FootballCardApp() {
   const [playerName, setPlayerName] = useState("");
   const [output, setOutput] = useState("");
   const [listing, setListing] = useState("");
-  const [purchasePrice, setPurchasePrice] = useState("");
 
   // ===== CORE =====
   const parsePrices = (text) =>
@@ -21,94 +20,100 @@ export default function FootballCardApp() {
     return arr.filter(p=>p>a*0.5 && p<a*1.5);
   };
 
-  const exactPrice = (a)=> a ? a.toFixed(2) : "0.00";
-
-  // ===== DETECTION =====
   const autoFillPlayer = ()=>{
     const match = copilotOutput.match(/([A-Z][a-z]+\s[A-Z][a-z]+)/);
     if(match) setPlayerName(match[0]);
   };
 
-  // ===== ANALYSE =====
-  const analyse = ()=>{
+  const getPrice = ()=>{
     const raw = parsePrices(sales);
-    const price = exactPrice(avg(clean(raw)));
-    setOutput(`💰 List at £${price}`);
+    return avg(clean(raw)).toFixed(2);
   };
 
-  // ===== LISTING =====
-  const generateListing = ()=>{
-    const raw = parsePrices(sales);
-    const price = exactPrice(avg(clean(raw)));
+  const analyse = ()=>{
+    setOutput(`💰 List at £${getPrice()}`);
+  };
 
-    setListing(`📌 ${playerName} Football Card £${price}\n\nGreat condition.\nFast shipping.`);
+  const generateListing = ()=>{
+    const price = getPrice();
+    setListing(`📌 ${playerName || "Card"} £${price}\n\nGreat condition\nFast dispatch`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl p-4 shadow space-y-4">
+    <div className="min-h-screen bg-gray-100 flex items-start justify-center p-3">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-md p-4 space-y-4">
 
-        <h1 className="text-lg font-bold text-center">⚽ Pro Card Scanner</h1>
+        <h1 className="text-xl font-bold text-center">⚽ Card Scanner</h1>
 
-        {/* IMAGE INPUT */}
-        <input type="file" accept="image/*" multiple
-          onChange={(e)=>setImages([...e.target.files])}
-          className="w-full border p-2 rounded" />
+        {/* IMAGE UPLOAD */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Upload / Scan Card</label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e)=>setImages([...e.target.files])}
+            className="w-full border rounded p-2"
+          />
 
-        <div className="flex gap-2 overflow-x-auto">
-          {images.map((img,i)=>(
-            <img key={i} src={URL.createObjectURL(img)} className="w-16 h-16 rounded object-cover" />
-          ))}
+          <div className="flex gap-2 overflow-x-auto">
+            {images.map((img,i)=> (
+              <img key={i} src={URL.createObjectURL(img)} className="w-16 h-16 rounded object-cover" />
+            ))}
+          </div>
         </div>
 
         {/* DETECTION */}
-        <textarea
-          placeholder="Paste Copilot output"
-          value={copilotOutput}
-          onChange={e=>setCopilotOutput(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Paste Copilot Result</label>
+          <textarea
+            placeholder="Paste AI output here..."
+            value={copilotOutput}
+            onChange={e=>setCopilotOutput(e.target.value)}
+            className="w-full border rounded p-2"
+          />
 
-        <button onClick={autoFillPlayer} className="w-full bg-blue-600 text-white p-2 rounded">
-          Auto Fill Player
-        </button>
+          <button onClick={autoFillPlayer} className="w-full bg-blue-600 text-white rounded p-2">
+            Auto Detect Player
+          </button>
 
-        <input
-          value={playerName}
-          onChange={e=>setPlayerName(e.target.value)}
-          placeholder="Player"
-          className="w-full border p-2 rounded"
-        />
+          <input
+            value={playerName}
+            onChange={e=>setPlayerName(e.target.value)}
+            placeholder="Player name"
+            className="w-full border rounded p-2"
+          />
+        </div>
 
-        {/* PRICES */}
-        <textarea
-          placeholder="£10\n£12\n£9"
-          value={sales}
-          onChange={e=>setSales(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
+        {/* PRICING */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Sold Prices</label>
+          <textarea
+            placeholder="£10\n£12\n£9"
+            value={sales}
+            onChange={e=>setSales(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
 
-        <input
-          placeholder="Buy price"
-          value={purchasePrice}
-          onChange={e=>setPurchasePrice(e.target.value)}
-          className="w-full border p-2 rounded"
-        />
-
-        {/* BUTTONS */}
+        {/* ACTIONS */}
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={analyse} className="bg-green-600 text-white p-2 rounded">Analyse</button>
-          <button onClick={generateListing} className="bg-purple-600 text-white p-2 rounded">Listing</button>
+          <button onClick={analyse} className="bg-green-600 text-white p-3 rounded font-semibold">
+            Analyse
+          </button>
+          <button onClick={generateListing} className="bg-purple-600 text-white p-3 rounded font-semibold">
+            Listing
+          </button>
         </div>
 
         {/* OUTPUT */}
-        <div className="bg-gray-50 p-2 rounded text-sm whitespace-pre-wrap">
-          {output}
+        <div className="bg-gray-50 p-3 rounded text-sm">
+          {output || "Results will appear here"}
         </div>
 
         {/* LISTING */}
-        <div className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap">
-          {listing}
+        <div className="bg-gray-100 p-3 rounded text-sm">
+          {listing || "Listing will appear here"}
         </div>
 
       </div>
