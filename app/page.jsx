@@ -120,10 +120,7 @@ Market Avg: £${a.toFixed(2)}
 
 
   const fetchEbay = () => {
-    setSales("£10
-£12
-£9");
-  };
+  setSales("£10\\n£12\\n£9");
 
   const addSale = () => {
     if (!purchasePrice || !playerName) return;
