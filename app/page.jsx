@@ -10,6 +10,7 @@ export default function FootballCardApp() {
   const [purchasePrice, setPurchasePrice] = useState("");
   const [soldCards, setSoldCards] = useState([]);
 
+  // ===== PRICE ENGINE =====
   const parsePrices = (text) =>
     text
       .split("\\n")
@@ -25,7 +26,7 @@ export default function FootballCardApp() {
   };
 
   const trend = (arr) => {
-    if (arr.length < 3) return "Not enough data";
+    if (arr.length < 3) return "Unknown";
     const first = avg(arr.slice(0, 2));
     const last = avg(arr.slice(-2));
     if (last > first) return "📈 Rising";
@@ -60,24 +61,26 @@ export default function FootballCardApp() {
     return "❌ SKIP";
   };
 
+  // ===== AI DETECTION =====
   const generateDetectionPrompt = () => {
     if (images.length === 0) return;
 
-    const prompt = `Identify this football trading card from the images provided.
+    const prompt = `Identify this football trading card.
 
 Return:
 - Player name
 - Year
 - Set/Brand
-- Parallel/variation
-- Card number (if visible)
+- Parallel
+- Card number
 
-Be accurate and do not guess.`;
+Be accurate.`;
 
     navigator.clipboard.writeText(prompt);
-    setOutput("✅ Prompt copied — paste into Copilot with images.");
+    setOutput("✅ Prompt copied. Upload images in Copilot and paste it.");
   };
 
+  // ===== ANALYSIS =====
   const analyse = () => {
     setLoading(true);
 
@@ -99,19 +102,22 @@ Market Avg: £${a.toFixed(2)}
 📈 TREND: ${t}
 🔥 SCORE: ${score}/10
 
-🤖 ${finalDecision}`);
+🤖 DECISION: ${finalDecision}`);
       setLoading(false);
     }, 300);
   };
 
+  // ===== IMAGE HANDLING =====
   const handleImages = (e) => {
     setImages(Array.from(e.target.files));
   };
 
+  // ===== DEMO EBAY DATA =====
   const fetchEbay = () => {
     setSales("£10\\n£12\\n£9");
   };
 
+  // ===== TRACKING =====
   const addSale = () => {
     if (!purchasePrice || !playerName) return;
 
@@ -119,7 +125,7 @@ Market Avg: £${a.toFixed(2)}
 
     setSoldCards([
       ...soldCards,
-      { player: playerName, profit },
+      { player: playerName, profit }
     ]);
   };
 
@@ -131,67 +137,87 @@ Market Avg: £${a.toFixed(2)}
     return map;
   };
 
+  // ===== UI STYLES =====
+  const card = {
+    background: "#f5f5f5",
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12
+  };
+
+  const input = {
+    width: "100%",
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 8,
+    border: "1px solid #ccc"
+  };
+
+  const primary = {
+    flex: 1,
+    padding: 12,
+    background: "#0070f3",
+    color: "white",
+    border: "none",
+    borderRadius: 10,
+    fontWeight: "bold"
+  };
+
+  const secondary = {
+    flex: 1,
+    padding: 12,
+    background: "#ddd",
+    border: "none",
+    borderRadius: 10
+  };
+
+  // ===== UI =====
   return (
-    <div style={{ padding: 20, maxWidth: 500, margin: "auto" }}>
-      <h2>⚽ AI Card Scanner</h2>
+    <div style={{ padding: 16, maxWidth: 420, margin: "auto" }}>
+      <h2 style={{ textAlign: "center" }}>⚽ Card Scanner</h2>
 
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        multiple
-        onChange={handleImages}
-      />
-
-      <div>
-        {images.map((img, i) => (
-          <img
-            key={i}
-            src={URL.createObjectURL(img)}
-            width={80}
-            alt="card"
-          />
-        ))}
+      {/* CAMERA */}
+      <div style={card}>
+        <input type="file" accept="image/*" capture="environment" multiple onChange={handleImages} />
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          {images.map((img, i) => (
+            <img key={i} src={URL.createObjectURL(img)} width={60} />
+          ))}
+        </div>
       </div>
 
-      <button onClick={generateDetectionPrompt}>
+      <button style={primary} onClick={generateDetectionPrompt}>
         🔍 Detect Card
       </button>
 
-      <input
-        placeholder="Player"
-        value={playerName}
-        onChange={(e) => setPlayerName(e.target.value)}
-      />
+      <input style={input} placeholder="Player" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
 
-      <textarea
-        placeholder={"£10\n£12\n£9"}
-        value={sales}
-        onChange={(e) => setSales(e.target.value)}
-      />
+      <textarea style={input} placeholder={"£10\n£12\n£9"} value={sales} onChange={(e) => setSales(e.target.value)} />
 
-      <input
-        placeholder="Buy Price"
-        value={purchasePrice}
-        onChange={(e) => setPurchasePrice(e.target.value)}
-      />
+      <input style={input} placeholder="Buy Price (£)" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
 
-      <button onClick={fetchEbay}>Auto Prices</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button style={secondary} onClick={fetchEbay}>Auto</button>
+        <button style={primary} onClick={analyse}>
+          {loading ? "..." : "Analyse"}
+        </button>
+      </div>
 
-      <button onClick={analyse}>
-        {loading ? "..." : "Analyse"}
+      <div style={card}>
+        <pre style={{ whiteSpace: "pre-wrap" }}>{output}</pre>
+      </div>
+
+      <button style={secondary} onClick={addSale}>
+        Save Profit
       </button>
 
-      <pre>{output}</pre>
-
-      <button onClick={addSale}>Save Profit</button>
-
-      <h3>📈 Player Profits</h3>
-      {Object.entries(playerStats()).map(([p, val]) => (
-        <div key={p}>
-          {p}: £{val}
-        </div>
-      ))}
+      <div style={card}>
+        <h3>📈 Player Profit</h3>
+        {Object.entries(playerStats()).map(([p, val]) => (
+          <div key={p}>{p}: £{val}</div>
+        ))}
+      </div>
     </div>
   );
 }
+``
