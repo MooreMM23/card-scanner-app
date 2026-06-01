@@ -7,6 +7,7 @@ export default function FootballCardApp() {
   const [copilotOutput, setCopilotOutput] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [output, setOutput] = useState("");
+  const [listing, setListing] = useState("");
   const [loading, setLoading] = useState(false);
   const [purchasePrice, setPurchasePrice] = useState("");
   const [soldCards, setSoldCards] = useState([]);
@@ -55,7 +56,7 @@ export default function FootballCardApp() {
     return "❌ SKIP";
   };
 
-  // ===== AI DETECTION + AUTO-FILL =====
+  // ===== AI DETECTION =====
   const generateDetectionPrompt = () => {
     const prompt = `Identify this football card. Return player, year, set, variant.`;
     navigator.clipboard.writeText(prompt);
@@ -87,6 +88,20 @@ export default function FootballCardApp() {
       setOutput(`📊 ${playerName || "(detect)"}\n\n💰 LIST: £${price}\nAVG: £${a.toFixed(2)}\nPROFIT: £${profit}\n\n📈 ${t}\n🔥 SCORE: ${score.toFixed(1)}\n\n🤖 ${finalDecision}`);
       setLoading(false);
     }, 300);
+  };
+
+  // ===== LISTING GENERATOR (NEW) =====
+  const generateListing = () => {
+    const raw = parsePrices(sales);
+    const a = avg(cleanPrices(raw));
+
+    const title = `${playerName} Football Card | Great Condition`;
+
+    const desc = `${playerName} football card.\n\nCondition: Good condition (see photos).\n\nMarket value approx £${a.toFixed(2)}.\n\nFast shipping available. Open to offers.`;
+
+    const tags = "football card, soccer card, trading card, rare card, collector";
+
+    setListing(`TITLE:\n${title}\n\nDESCRIPTION:\n${desc}\n\nTAGS:\n${tags}`);
   };
 
   // ===== BATCH RANKING =====
@@ -124,38 +139,54 @@ export default function FootballCardApp() {
     return acc;
   }, {});
 
-  // ===== UI =====
   return (
-    <div style={{ padding: 16, maxWidth: 420, margin: "auto" }}>
-      <h2>⚽ Pro Card Scanner</h2>
+    <div className="max-w-md mx-auto p-4 space-y-4">
+      <h1 className="text-xl font-bold">⚽ Pro Card Scanner</h1>
 
-      <input type="file" accept="image/*" capture="environment" multiple onChange={(e)=>setImages([...e.target.files])} />
+      {/* FILE INPUT (FIXED FOR MOBILE) */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        multiple 
+        onChange={(e)=>setImages([...e.target.files])}
+        className="w-full"
+      />
 
-      <div style={{ display:"flex", gap:8, overflowX:"auto" }}>
+      <div className="flex gap-2 overflow-x-auto">
         {images.map((img,i)=> (
-          <img key={i} src={URL.createObjectURL(img)} style={{width:70,borderRadius:8}} />
+          <img key={i} src={URL.createObjectURL(img)} className="w-16 h-16 object-cover rounded" />
         ))}
       </div>
 
-      <button onClick={generateDetectionPrompt}>🔍 Detect</button>
+      <button className="w-full bg-blue-600 text-white p-2 rounded" onClick={generateDetectionPrompt}>🔍 Detect Card</button>
 
-      <textarea placeholder="Paste Copilot output..." value={copilotOutput} onChange={(e)=>setCopilotOutput(e.target.value)} />
-      <button onClick={autoFillPlayer}>Auto Fill Player</button>
+      <textarea className="w-full p-2 border rounded" placeholder="Paste Copilot output..." value={copilotOutput} onChange={(e)=>setCopilotOutput(e.target.value)} />
 
-      <input value={playerName} onChange={(e)=>setPlayerName(e.target.value)} placeholder="Player" />
+      <button className="w-full bg-gray-200 p-2 rounded" onClick={autoFillPlayer}>Auto Fill Player</button>
 
-      <textarea placeholder={"£10\n£12\n£9"} value={sales} onChange={(e)=>setSales(e.target.value)} />
-      <input placeholder="Buy Price" value={purchasePrice} onChange={(e)=>setPurchasePrice(parseFloat(e.target.value)||"")} />
+      <input className="w-full p-2 border rounded" value={playerName} onChange={(e)=>setPlayerName(e.target.value)} placeholder="Player" />
 
-      <button onClick={analyse}>{loading ? "..." : "Analyse"}</button>
-      <button onClick={runBatch}>Rank Batch</button>
+      <textarea className="w-full p-2 border rounded" placeholder={"£10\n£12\n£9"} value={sales} onChange={(e)=>setSales(e.target.value)} />
 
-      <pre>{output}</pre>
+      <input className="w-full p-2 border rounded" placeholder="Buy Price" value={purchasePrice} onChange={(e)=>setPurchasePrice(parseFloat(e.target.value)||"")} />
 
-      <button onClick={()=>navigator.clipboard.writeText(output)}>Copy</button>
-      <button onClick={addSale}>Save Sale</button>
+      <div className="flex gap-2">
+        <button className="flex-1 bg-blue-600 text-white p-2 rounded" onClick={analyse}>{loading ? "..." : "Analyse"}</button>
+        <button className="flex-1 bg-purple-600 text-white p-2 rounded" onClick={runBatch}>Batch</button>
+      </div>
 
-      <h3>Total: £{soldCards.reduce((a,c)=>a+c.profit,0).toFixed(2)}</h3>
+      <button className="w-full bg-green-600 text-white p-2 rounded" onClick={generateListing}>Generate Listing</button>
+
+      <pre className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap">{output}</pre>
+
+      <pre className="bg-gray-50 p-2 rounded text-sm whitespace-pre-wrap">{listing}</pre>
+
+      <div className="flex gap-2">
+        <button className="flex-1 bg-gray-300 p-2 rounded" onClick={()=>navigator.clipboard.writeText(output)}>Copy Result</button>
+        <button className="flex-1 bg-gray-300 p-2 rounded" onClick={addSale}>Save Sale</button>
+      </div>
+
+      <h3 className="font-semibold">Total: £{soldCards.reduce((a,c)=>a+c.profit,0).toFixed(2)}</h3>
 
       {Object.entries(stats).map(([p,v])=> (
         <div key={p}>{p}: £{v.toFixed(2)}</div>
