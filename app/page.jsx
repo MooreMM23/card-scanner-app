@@ -4,21 +4,21 @@ import { useState } from "react";
 export default function FootballCardApp() {
   const [images, setImages] = useState([]);
   const [sales, setSales] = useState("");
+  const [copilotOutput, setCopilotOutput] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [purchasePrice, setPurchasePrice] = useState("");
   const [soldCards, setSoldCards] = useState([]);
 
-  // ===== PRICE ENGINE =====
+  // ===== CORE ENGINE =====
   const parsePrices = (text) =>
     text
       .split("\\n")
       .map((s) => parseFloat(s.replace("£", "")))
       .filter((n) => !isNaN(n));
 
-  const avg = (arr) =>
-    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
   const cleanPrices = (arr) => {
     const a = avg(arr);
@@ -26,31 +26,25 @@ export default function FootballCardApp() {
   };
 
   const trend = (arr) => {
-    if (arr.length < 3) return "Unknown";
+    if (arr.length < 3) return "➡️ Stable";
     const first = avg(arr.slice(0, 2));
     const last = avg(arr.slice(-2));
-    if (last > first) return "📈 Rising";
-    if (last < first) return "📉 Falling";
+    if (last > first * 1.05) return "📈 Rising";
+    if (last < first * 0.95) return "📉 Falling";
     return "➡️ Stable";
   };
 
   const flipScore = (a) => {
     if (!purchasePrice) return 0;
-    return Math.max(
-      Math.min(((a - purchasePrice) / a) * 10, 10),
-      0
-    ).toFixed(1);
+    return Math.max(Math.min(((a - purchasePrice) / a) * 10, 10), 0);
   };
 
-  const exactPrice = (avgPrice, trendDir, score) => {
-    let base = avgPrice;
-
+  const exactPrice = (a, trendDir, score) => {
+    let base = a;
     if (trendDir.includes("Rising")) base *= 1.05;
     if (trendDir.includes("Falling")) base *= 0.9;
-
     if (score > 8) base *= 1.05;
     if (score < 4) base *= 0.9;
-
     return base.toFixed(2);
   };
 
@@ -61,23 +55,17 @@ export default function FootballCardApp() {
     return "❌ SKIP";
   };
 
-  // ===== AI DETECTION =====
+  // ===== AI DETECTION + AUTO-FILL =====
   const generateDetectionPrompt = () => {
-    if (images.length === 0) return;
-
-    const prompt = `Identify this football trading card.
-
-Return:
-- Player name
-- Year
-- Set/Brand
-- Parallel
-- Card number
-
-Be accurate.`;
-
+    const prompt = `Identify this football card. Return player, year, set, variant.`;
     navigator.clipboard.writeText(prompt);
-    setOutput("✅ Prompt copied. Upload images in Copilot and paste it.");
+    setOutput("✅ Prompt copied → open Copilot & upload images.");
+  };
+
+  const autoFillPlayer = () => {
+    if (!copilotOutput) return;
+    const words = copilotOutput.split(" ");
+    setPlayerName(words.slice(0, 2).join(" "));
   };
 
   // ===== ANALYSIS =====
@@ -89,135 +77,89 @@ Be accurate.`;
     const a = avg(filtered);
 
     const t = trend(raw);
-    const score = parseFloat(flipScore(a));
+    const score = flipScore(a);
     const price = exactPrice(a, t, score);
     const finalDecision = decision(score, t);
 
+    const profit = purchasePrice ? (price - purchasePrice).toFixed(2) : "-";
+
     setTimeout(() => {
-      setOutput(`📊 PLAYER: ${playerName || "(detect first)"}
-
-💰 LIST AT: £${price}
-Market Avg: £${a.toFixed(2)}
-
-📈 TREND: ${t}
-🔥 SCORE: ${score}/10
-
-🤖 DECISION: ${finalDecision}`);
+      setOutput(`📊 ${playerName || "(detect)"}\n\n💰 LIST: £${price}\nAVG: £${a.toFixed(2)}\nPROFIT: £${profit}\n\n📈 ${t}\n🔥 SCORE: ${score.toFixed(1)}\n\n🤖 ${finalDecision}`);
       setLoading(false);
     }, 300);
   };
 
-  // ===== IMAGE HANDLING =====
-  const handleImages = (e) => {
-    setImages(Array.from(e.target.files));
-  };
+  // ===== BATCH RANKING =====
+  const runBatch = () => {
+    const blocks = sales.split("\\n\\n");
 
-  // ===== DEMO EBAY DATA =====
-  const fetchEbay = () => {
-    setSales("£10\\n£12\\n£9");
+    const results = blocks.map((block, i) => {
+      const prices = cleanPrices(parsePrices(block));
+      const a = avg(prices);
+      const score = flipScore(a);
+      return { index: i + 1, avg: a, score };
+    });
+
+    results.sort((a, b) => b.score - a.score);
+
+    let out = "BEST FLIPS:\n\n";
+    results.forEach((r) => {
+      out += `Card ${r.index}: £${r.avg.toFixed(2)} (Score: ${r.score.toFixed(1)})\n`;
+    });
+
+    setOutput(out);
   };
 
   // ===== TRACKING =====
   const addSale = () => {
     if (!purchasePrice || !playerName) return;
-
-    const profit = parseFloat(purchasePrice);
-
-    setSoldCards([
-      ...soldCards,
-      { player: playerName, profit }
-    ]);
+    const raw = parsePrices(sales);
+    const a = avg(cleanPrices(raw));
+    const profit = a - purchasePrice;
+    setSoldCards([...soldCards, { player: playerName, profit }]);
   };
 
-  const playerStats = () => {
-    const map = {};
-    soldCards.forEach((c) => {
-      map[c.player] = (map[c.player] || 0) + c.profit;
-    });
-    return map;
-  };
-
-  // ===== UI STYLES =====
-  const card = {
-    background: "#f5f5f5",
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 12
-  };
-
-  const input = {
-    width: "100%",
-    padding: 10,
-    marginTop: 10,
-    borderRadius: 8,
-    border: "1px solid #ccc"
-  };
-
-  const primary = {
-    flex: 1,
-    padding: 12,
-    background: "#0070f3",
-    color: "white",
-    border: "none",
-    borderRadius: 10,
-    fontWeight: "bold"
-  };
-
-  const secondary = {
-    flex: 1,
-    padding: 12,
-    background: "#ddd",
-    border: "none",
-    borderRadius: 10
-  };
+  const stats = soldCards.reduce((acc, c) => {
+    acc[c.player] = (acc[c.player] || 0) + c.profit;
+    return acc;
+  }, {});
 
   // ===== UI =====
   return (
     <div style={{ padding: 16, maxWidth: 420, margin: "auto" }}>
-      <h2 style={{ textAlign: "center" }}>⚽ Card Scanner</h2>
+      <h2>⚽ Pro Card Scanner</h2>
 
-      {/* CAMERA */}
-      <div style={card}>
-        <input type="file" accept="image/*" capture="environment" multiple onChange={handleImages} />
-        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-          {images.map((img, i) => (
-            <img key={i} src={URL.createObjectURL(img)} width={60} />
-          ))}
-        </div>
-      </div>
+      <input type="file" accept="image/*" capture="environment" multiple onChange={(e)=>setImages([...e.target.files])} />
 
-      <button style={primary} onClick={generateDetectionPrompt}>
-        🔍 Detect Card
-      </button>
-
-      <input style={input} placeholder="Player" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
-
-      <textarea style={input} placeholder={"£10\n£12\n£9"} value={sales} onChange={(e) => setSales(e.target.value)} />
-
-      <input style={input} placeholder="Buy Price (£)" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
-
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button style={secondary} onClick={fetchEbay}>Auto</button>
-        <button style={primary} onClick={analyse}>
-          {loading ? "..." : "Analyse"}
-        </button>
-      </div>
-
-      <div style={card}>
-        <pre style={{ whiteSpace: "pre-wrap" }}>{output}</pre>
-      </div>
-
-      <button style={secondary} onClick={addSale}>
-        Save Profit
-      </button>
-
-      <div style={card}>
-        <h3>📈 Player Profit</h3>
-        {Object.entries(playerStats()).map(([p, val]) => (
-          <div key={p}>{p}: £{val}</div>
+      <div style={{ display:"flex", gap:8, overflowX:"auto" }}>
+        {images.map((img,i)=> (
+          <img key={i} src={URL.createObjectURL(img)} style={{width:70,borderRadius:8}} />
         ))}
       </div>
+
+      <button onClick={generateDetectionPrompt}>🔍 Detect</button>
+
+      <textarea placeholder="Paste Copilot output..." value={copilotOutput} onChange={(e)=>setCopilotOutput(e.target.value)} />
+      <button onClick={autoFillPlayer}>Auto Fill Player</button>
+
+      <input value={playerName} onChange={(e)=>setPlayerName(e.target.value)} placeholder="Player" />
+
+      <textarea placeholder={"£10\n£12\n£9"} value={sales} onChange={(e)=>setSales(e.target.value)} />
+      <input placeholder="Buy Price" value={purchasePrice} onChange={(e)=>setPurchasePrice(parseFloat(e.target.value)||"")} />
+
+      <button onClick={analyse}>{loading ? "..." : "Analyse"}</button>
+      <button onClick={runBatch}>Rank Batch</button>
+
+      <pre>{output}</pre>
+
+      <button onClick={()=>navigator.clipboard.writeText(output)}>Copy</button>
+      <button onClick={addSale}>Save Sale</button>
+
+      <h3>Total: £{soldCards.reduce((a,c)=>a+c.profit,0).toFixed(2)}</h3>
+
+      {Object.entries(stats).map(([p,v])=> (
+        <div key={p}>{p}: £{v.toFixed(2)}</div>
+      ))}
     </div>
   );
 }
-``
